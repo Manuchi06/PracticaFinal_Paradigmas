@@ -16,7 +16,7 @@ Diseñar e implementar en el lenguaje de programación Java un programa que anal
 
 1. Implementar un analizador que verifique la validez de una cadena FEN.
 2. Generar un mensaje de error cuando la cadena sea inválida.
-3. Permitir al usuario mover piezas arrastrándolas con el mouse (drag & drop).
+3. Permitir al usuario mover piezas arrastrándolas con el mouse.
 4. Generar en tiempo real la nueva cadena FEN según la posición actual.
 5. Representar visualmente el tablero de ajedrez usando Swing e ilustraciones de piezas en formato PNG.
 6. Diseñar una interfaz que permita al usuario ingresar, analizar y limpiar posiciones.
@@ -75,6 +75,7 @@ El proyecto está compuesto por cuatro clases principales:
 **Resultado esperado:**
   - **Caso 3:** “La cadena FEN debe tener 6 campos separados por espacios. Se encontraron: 1.”
   - **Caso 4:** "La colocación de piezas debe tener 8 filas separadas por '/'. Se encontró: 9"
+
 
 
 
