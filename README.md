@@ -4,7 +4,6 @@
 
 ### Estudiante: Manuela Buriticá Guzmán
 
----
 
 ##  Analizador sintáctico FEN con interfaz gráfica en Java (Ajedrez)
 
@@ -76,5 +75,6 @@ El proyecto está compuesto por cuatro clases principales:
 **Resultado esperado:**
   - **Caso 3:** “La cadena FEN debe tener 6 campos separados por espacios. Se encontraron: 1.”
   - **Caso 4:** "La colocación de piezas debe tener 8 filas separadas por '/'. Se encontró: 9"
+
 
 
