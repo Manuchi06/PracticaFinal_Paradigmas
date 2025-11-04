@@ -1,21 +1,36 @@
 package com.fenparser;
 
+import java.util.regex.*;
+
 public class FENParser {
+
+    // Excepción personalizada
     public static class FENExcepcion extends Exception {
         public FENExcepcion(String mensaje) { super(mensaje); }
     }
 
+    // Regex precompiladas para eficiencia
+    private static final Pattern FEN_PATTERN = Pattern.compile(
+        "^([prnbqkPRNBQK1-8]{1,8}/){7}[prnbqkPRNBQK1-8]{1,8}\\s[w|b]\\s(K?Q?k?q?|-)\\s(-|[a-h][36])\\s\\d+\\s\\d+$"
+    );
+
+    private static final Pattern ROW_PATTERN = Pattern.compile("^[prnbqkPRNBQK1-8]{1,8}$");
+    private static final Pattern EN_PASSANT_PATTERN = Pattern.compile("^-|[a-h][36]$");
+    private static final Pattern CASTLING_PATTERN = Pattern.compile("^-|[KQkq]+$");
+    private static final Pattern SIDE_PATTERN = Pattern.compile("^[wb]$");
+
     public static Tablero parse(String fen) throws FENExcepcion {
+        if (fen == null || fen.trim().isEmpty())
+            throw new FENExcepcion("La cadena FEN está vacía o es nula.");
 
-        if (fen == null) throw new FENExcepcion("La cadena FEN es nula.");
         fen = fen.trim();
-        if (fen.isEmpty()) throw new FENExcepcion("La cadena FEN está vacía.");
 
-        // Divide la cadena FEN en 6 partes principales
+        // ✅ Validación general con regex principal
+        if (!FEN_PATTERN.matcher(fen).matches())
+            throw new FENExcepcion("Formato general FEN inválido. Revise la estructura o los campos.");
+
+        // Separamos por espacios (ya sabemos que hay 6 partes válidas)
         String[] partes = fen.split("\\s+");
-        if (partes.length != 6)
-            throw new FENExcepcion("La cadena FEN debe tener 6 campos separados por espacios. Se encontraron: " + partes.length);
-
         String colocacion = partes[0];
         String mover_lado = partes[1];
         String enroque = partes[2];
@@ -23,63 +38,42 @@ public class FENParser {
         String medio_movimiento = partes[4];
         String jugada_completa = partes[5];
 
-        // Validar y procesar la colocación de las piezas (8 filas)
-        String[] filas_h = colocacion.split("/");
-        if (filas_h.length != 8)
-            throw new FENExcepcion("La colocación de piezas debe tener 8 filas separadas por '/'. Se encontró: " + filas_h.length);
+        // Validaciones individuales adicionales (opcional pero pedagógico)
+        if (!SIDE_PATTERN.matcher(mover_lado).matches())
+            throw new FENExcepcion("El lado que debe mover debe ser 'w' o 'b'.");
+
+        if (!CASTLING_PATTERN.matcher(enroque).matches())
+            throw new FENExcepcion("Campo de enroque inválido. Solo se permite KQkq o '-'.");
+
+        if (!EN_PASSANT_PATTERN.matcher(captura).matches())
+            throw new FENExcepcion("Campo de captura al paso inválido.");
+
+        // Procesar el campo de colocación
+        String[] filas = colocacion.split("/");
+        if (filas.length != 8)
+            throw new FENExcepcion("Debe haber exactamente 8 filas en el tablero.");
 
         char[][] tablero = new char[8][8];
 
-        // Recorrer cada fila y validar sus caracteres
         for (int r = 0; r < 8; r++) {
-            String fila_h = filas_h[r];
-            int fila = 0;
+            String fila = filas[r];
+            if (!ROW_PATTERN.matcher(fila).matches())
+                throw new FENExcepcion("Fila inválida: contiene caracteres no permitidos.");
 
-            for (int i = 0; i < fila_h.length(); i++) {
-                char c = fila_h.charAt(i);
-
-                if (c >= '1' && c <= '8') {
+            int col = 0;
+            for (char c : fila.toCharArray()) {
+                if (Character.isDigit(c)) {
                     int empty = c - '0';
-                    if (fila + empty > 8) throw new FENExcepcion("Fila " + (8 - r) + " tiene demasiadas casillas.");
-                    for (int k = 0; k < empty; k++) tablero[r][fila++] = '.';
-                } else if (pieza_valida(c)) {
-                    if (fila >= 8) throw new FENExcepcion("Fila " + (8 - r) + " demasiado larga.");
-                    tablero[r][fila++] = c;
+                    for (int i = 0; i < empty; i++) tablero[r][col++] = '.';
                 } else {
-                    throw new FENExcepcion("Caracter invalido '" + c + "' en fila " + (8 - r));
+                    tablero[r][col++] = c;
                 }
             }
-            if (fila != 8)
-                throw new FENExcepcion("Fila " + (8 - r) + " no tiene exactamente 8 casillas");
+            if (col != 8)
+                throw new FENExcepcion("Fila " + (8 - r) + " no tiene exactamente 8 casillas.");
         }
 
-        // Valida el resto de campos (lado, enroque, captura al paso, contadores)
-
-        if (!mover_lado.equals("w") && !mover_lado.equals("b"))
-            throw new FENExcepcion("El lado que debe mover debe ser 'w' o 'b'. Se encontró:'" + mover_lado + "'.");
-
-        if (!enroque.equals("-")) {
-            for (char c : enroque.toCharArray())
-                if ("KQkq".indexOf(c) == -1)
-                    throw new FENExcepcion("Carácter de enroque inválido: '" + c + "'.");
-        }
-
-        if (!captura.equals("-")) {
-            if (captura.length() != 2) throw new FENExcepcion("Casilla de captura al paso inválida.");
-            char fila = captura.charAt(0);
-            char fila_h = captura.charAt(1);
-            if ("abcdefgh".indexOf(fila) == -1 || (fila_h != '3' && fila_h != '6'))
-                throw new FENExcepcion("Casilla de captura al paso inválida. '" + captura + "'.");
-        }
-
-        // Contadores
-        if (!no_negativo(medio_movimiento))
-            throw new FENExcepcion("El contador de medio movimiento debe ser no negativo.");
-
-        if (!es_positivo(jugada_completa))
-            throw new FENExcepcion("El contador de jugadas completas debe ser positivo.");
-
-        // Crea y llena el objeto Tablero con los datos validados
+        // Crear el objeto Tablero con la información ya validada
         Tablero b = new Tablero();
         b.setMover_lado(mover_lado.charAt(0));
         b.setEnroque(enroque);
@@ -88,26 +82,9 @@ public class FENParser {
         b.setJugada_completa(Integer.parseInt(jugada_completa));
 
         for (int r = 0; r < 8; r++)
-            for (int f = 0; f < 8; f++)
-                b.setPieza(r, f, tablero[r][f]);
+            for (int c = 0; c < 8; c++)
+                b.setPieza(r, c, tablero[r][c]);
 
         return b;
-    }
-
-    // Verificación de pertenencia y representación
-
-    private static boolean pieza_valida(char c) {
-        return "pnbrqkPNBRQK".indexOf(c) != -1;
-    }
-
-    private static boolean no_negativo (String s) {
-        if (s == null || s.isEmpty()) return false;
-        for (char ch : s.toCharArray()) if (!Character.isDigit(ch)) return false;
-        return true;
-    }
-
-    private static boolean es_positivo(String s) {
-        if (!no_negativo(s)) return false;
-        return Integer.parseInt(s) >= 1;
     }
 }
